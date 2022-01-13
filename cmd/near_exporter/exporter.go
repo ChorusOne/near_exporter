@@ -89,7 +89,7 @@ type nearExporter struct {
 	validatorIsSlashed      *prometheus.Desc
 }
 
-func NewSolanaCollector(rpcAddr string) prometheus.Collector {
+func NewNearCollector(rpcAddr string) prometheus.Collector {
 	return &nearExporter{
 		client:  &http.Client{Timeout: httpTimeout},
 		rpcAddr: rpcAddr,
@@ -184,7 +184,7 @@ func (c *nearExporter) collect(ch chan<- prometheus.Metric) error {
 }
 
 func main() {
-	collector := NewSolanaCollector(nearRPCAddr)
+	collector := NewNearCollector(nearRPCAddr)
 	prometheus.MustRegister(collector)
 	http.Handle("/metrics", promhttp.Handler())
 	log.Print("RPC address ", nearRPCAddr)
