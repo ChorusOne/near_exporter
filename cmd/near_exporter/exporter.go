@@ -181,6 +181,8 @@ func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.NewInvalidMetric(c.validatorExpectedChunks, err)
 		ch <- prometheus.NewInvalidMetric(c.validatorProducedChunks, err)
 		ch <- prometheus.NewInvalidMetric(c.validatorIsSlashed, err)
+
+		log.Printf("ERROR: %s", err)
 	}
 }
 
