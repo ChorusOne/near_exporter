@@ -32,17 +32,17 @@ type CurrentProposals struct {
 }
 
 type CurrentValidator struct {
-	AccountID         string `json:"account_id"`
-	IsSlashed         bool   `json:"is_slashed"`
-	NumExpectedBlocks int    `json:"num_expected_blocks"`
-	NumProducedBlocks int    `json:"num_produced_blocks"`
-	NumExpectedChunks int    `json:"num_expected_chunks"`
-	NumProducedChunks int    `json:"num_produced_chunks"`
+	AccountID               string `json:"account_id"`
+	IsSlashed               bool   `json:"is_slashed"`
+	NumExpectedBlocks       int    `json:"num_expected_blocks"`
+	NumProducedBlocks       int    `json:"num_produced_blocks"`
+	NumExpectedChunks       int    `json:"num_expected_chunks"`
+	NumProducedChunks       int    `json:"num_produced_chunks"`
 	NumExpectedEndorsements int    `json:"num_expected_endorsements"`
 	NumProducedEndorsements int    `json:"num_produced_endorsements"`
-	PublicKey         string `json:"public_key"`
-	Shards            []int  `json:"shards"`
-	Stake             string `json:"stake"`
+	PublicKey               string `json:"public_key"`
+	Shards                  []int  `json:"shards"`
+	Stake                   string `json:"stake"`
 }
 
 type NextValidator struct {
@@ -85,16 +85,16 @@ type nearExporter struct {
 	client  *http.Client
 	rpcAddr string
 
-	totalValidatorsDesc     *prometheus.Desc
-	epochStartHeight        *prometheus.Desc
-	validatorStake          *prometheus.Desc
-	validatorExpectedBlocks *prometheus.Desc
-	validatorProducedBlocks *prometheus.Desc
-	validatorExpectedChunks *prometheus.Desc
-	validatorProducedChunks *prometheus.Desc
+	totalValidatorsDesc           *prometheus.Desc
+	epochStartHeight              *prometheus.Desc
+	validatorStake                *prometheus.Desc
+	validatorExpectedBlocks       *prometheus.Desc
+	validatorProducedBlocks       *prometheus.Desc
+	validatorExpectedChunks       *prometheus.Desc
+	validatorProducedChunks       *prometheus.Desc
 	validatorExpectedEndorsements *prometheus.Desc
 	validatorProducedEndorsements *prometheus.Desc
-	validatorIsSlashed      *prometheus.Desc
+	validatorIsSlashed            *prometheus.Desc
 }
 
 func NewNearCollector(rpcAddr string) prometheus.Collector {
