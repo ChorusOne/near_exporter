@@ -38,6 +38,8 @@ type CurrentValidator struct {
 	NumProducedBlocks int    `json:"num_produced_blocks"`
 	NumExpectedChunks int    `json:"num_expected_chunks"`
 	NumProducedChunks int    `json:"num_produced_chunks"`
+	NumExpectedEndorsements int    `json:"num_expected_endorsements"`
+	NumProducedEndorsements int    `json:"num_produced_endorsements"`
 	PublicKey         string `json:"public_key"`
 	Shards            []int  `json:"shards"`
 	Stake             string `json:"stake"`
@@ -90,6 +92,8 @@ type nearExporter struct {
 	validatorProducedBlocks *prometheus.Desc
 	validatorExpectedChunks *prometheus.Desc
 	validatorProducedChunks *prometheus.Desc
+	validatorExpectedEndorsements *prometheus.Desc
+	validatorProducedEndorsements *prometheus.Desc
 	validatorIsSlashed      *prometheus.Desc
 }
 
@@ -124,6 +128,14 @@ func NewNearCollector(rpcAddr string) prometheus.Collector {
 		validatorProducedChunks: prometheus.NewDesc(
 			"near_exporter_validator_produced_chunks",
 			"Validator's actual produced chunks",
+			[]string{"account_id"}, nil),
+		validatorExpectedEndorsements: prometheus.NewDesc(
+			"near_exporter_validator_expected_endorsements",
+			"Validators's expected endorsements",
+			[]string{"account_id"}, nil),
+		validatorProducedEndorsements: prometheus.NewDesc(
+			"near_exporter_validator_produced_endorsements",
+			"Validator's actual produced endorsements",
 			[]string{"account_id"}, nil),
 		validatorIsSlashed: prometheus.NewDesc(
 			"near_exporter_validator_is_slashed",
@@ -161,6 +173,11 @@ func (c *nearExporter) mustEmitMetrics(ch chan<- prometheus.Metric, response *Va
 		ch <- prometheus.MustNewConstMetric(c.validatorProducedChunks, prometheus.GaugeValue,
 			float64(validator.NumProducedChunks), validator.AccountID)
 
+		ch <- prometheus.MustNewConstMetric(c.validatorExpectedEndorsements, prometheus.GaugeValue,
+			float64(validator.NumExpectedEndorsements), validator.AccountID)
+		ch <- prometheus.MustNewConstMetric(c.validatorProducedEndorsements, prometheus.GaugeValue,
+			float64(validator.NumProducedEndorsements), validator.AccountID)
+
 		if validator.IsSlashed {
 			ch <- prometheus.MustNewConstMetric(c.validatorIsSlashed, prometheus.GaugeValue, 1, validator.AccountID)
 		} else {
@@ -180,6 +197,8 @@ func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.NewInvalidMetric(c.validatorProducedBlocks, err)
 		ch <- prometheus.NewInvalidMetric(c.validatorExpectedChunks, err)
 		ch <- prometheus.NewInvalidMetric(c.validatorProducedChunks, err)
+		ch <- prometheus.NewInvalidMetric(c.validatorExpectedEndorsements, err)
+		ch <- prometheus.NewInvalidMetric(c.validatorProducedEndorsements, err)
 		ch <- prometheus.NewInvalidMetric(c.validatorIsSlashed, err)
 
 		log.Printf("ERROR: %s", err)
