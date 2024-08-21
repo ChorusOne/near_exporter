@@ -4,10 +4,10 @@ Docker images are available on [Docker Hub](https://hub.docker.com/r/certusone/n
 
 Go >= 1.14 is required to build the binary.
 
-### How to build
+### How to install
 
 ```
-go build github.com/certusone/near_exporter/cmd/near_exporter
+env GOBIN=/usr/local/bin go install github.com/ChorusOne/near_exporter/cmd/near_exporter@master
 ```
 
 ### systemd service example
@@ -18,7 +18,7 @@ cp near_exporter /usr/local/bin
 cat <<EOF > /etc/systemd/system/near-exporter.service
 [Unit]
 Description=Certus One near_exporter
-Documentation=https://github.com/certusone/near_exporter
+Documentation=https://github.com/ChorusOne/near_exporter
 After=network.target
 
 [Service]
@@ -35,7 +35,7 @@ EOF
 Enable and start the service:
 
 ```
-systemctl enable --now near-exporter
+systemctl enable --now near-exporter.service
 ```
 
 Exporter will be available at http://localhost:8080/metrics
