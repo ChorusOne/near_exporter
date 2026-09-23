@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -67,8 +68,10 @@ const (
 )
 
 var (
-	listenAddr  = os.Getenv("LISTEN_ADDR")
-	nearRPCAddr = os.Getenv("NEAR_RPC_ADDR")
+	listenAddr   = os.Getenv("LISTEN_ADDR")
+	nearRPCAddr  = os.Getenv("NEAR_RPC_ADDR")
+	nearAccounts = os.Getenv("NEAR_ACCOUNTS")
+	accounts     []string
 )
 
 func init() {
@@ -79,11 +82,19 @@ func init() {
 	if listenAddr == "" {
 		listenAddr = ":8080"
 	}
+
+	for _, account := range strings.Split(nearAccounts, ",") {
+		if account = strings.TrimSpace(account); account != "" {
+			accounts = append(accounts, account)
+		}
+	}
 }
 
 type nearExporter struct {
-	client  *http.Client
-	rpcAddr string
+	client         *http.Client
+	rpcAddr        string
+	accounts       []string
+	accountBalance *prometheus.Desc
 
 	totalValidatorsDesc           *prometheus.Desc
 	epochStartHeight              *prometheus.Desc
@@ -97,10 +108,15 @@ type nearExporter struct {
 	validatorIsSlashed            *prometheus.Desc
 }
 
-func NewNearCollector(rpcAddr string) prometheus.Collector {
+func NewNearCollector(rpcAddr string, accounts []string) prometheus.Collector {
 	return &nearExporter{
-		client:  &http.Client{Timeout: httpTimeout},
-		rpcAddr: rpcAddr,
+		client:   &http.Client{Timeout: httpTimeout},
+		rpcAddr:  rpcAddr,
+		accounts: accounts,
+		accountBalance: prometheus.NewDesc(
+			"near_exporter_account_balance_near",
+			"Account balance in NEAR (RPC amount, excluding locked balance)",
+			[]string{"account_id"}, nil),
 		totalValidatorsDesc: prometheus.NewDesc(
 			"near_exporter_active_validators",
 			"Total number of active validators",
@@ -146,6 +162,7 @@ func NewNearCollector(rpcAddr string) prometheus.Collector {
 
 func (c *nearExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.totalValidatorsDesc
+	ch <- c.accountBalance
 }
 
 func (c *nearExporter) mustEmitMetrics(ch chan<- prometheus.Metric, response *ValidatorsResponse) {
@@ -187,6 +204,15 @@ func (c *nearExporter) mustEmitMetrics(ch chan<- prometheus.Metric, response *Va
 }
 
 func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
+	for _, account := range c.accounts {
+		balance, err := c.getAccountBalance(account)
+		if err != nil {
+			log.Printf("ERROR: account %s: %s", account, err)
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.accountBalance, prometheus.GaugeValue, balance, account)
+	}
+
 	err := c.collect(ch)
 
 	if err != nil {
@@ -224,10 +250,11 @@ func (c *nearExporter) collect(ch chan<- prometheus.Metric) error {
 }
 
 func main() {
-	collector := NewNearCollector(nearRPCAddr)
+	collector := NewNearCollector(nearRPCAddr, accounts)
 	prometheus.MustRegister(collector)
 	http.Handle("/metrics", promhttp.Handler())
 	log.Print("RPC address ", nearRPCAddr)
+	log.Printf("Balance accounts: %v", accounts)
 	log.Print("Listening on ", listenAddr)
 	panic(http.ListenAndServe(listenAddr, nil))
 }
