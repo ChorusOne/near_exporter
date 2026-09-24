@@ -42,7 +42,7 @@ Exporter will be available at http://localhost:8080/metrics
 
 ### Account balances
 
-Optionally set `NEAR_ACCOUNTS_FILE` to a text file containing one unique account ID per line:
+Optionally set `NEAR_ACCOUNTS_FILE` to a text file containing one account ID per line:
 
 ```sh
 export NEAR_ACCOUNTS_FILE="/etc/near-exporter/accounts.txt"
@@ -54,7 +54,6 @@ Example file:
 chorusone.near
 treasury.near
 ```
-
 The file is read at startup; restart the exporter after changing it.
 
 Each query exports `near_exporter_account_balance_near{account_id="treasury.near"}` in NEAR.

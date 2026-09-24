@@ -90,9 +90,11 @@ func init() {
 			log.Fatalf("open accounts file: %s", err)
 		}
 		defer file.Close()
+		seen := make(map[string]bool)
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
-			if account := strings.TrimSpace(scanner.Text()); account != "" {
+			if account := strings.TrimSpace(scanner.Text()); account != "" && !seen[account] {
+				seen[account] = true
 				accounts = append(accounts, account)
 			}
 		}
