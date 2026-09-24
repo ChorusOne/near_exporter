@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
@@ -68,10 +69,10 @@ const (
 )
 
 var (
-	listenAddr   = os.Getenv("LISTEN_ADDR")
-	nearRPCAddr  = os.Getenv("NEAR_RPC_ADDR")
-	nearAccounts = os.Getenv("NEAR_ACCOUNTS")
-	accounts     []string
+	listenAddr       = os.Getenv("LISTEN_ADDR")
+	nearRPCAddr      = os.Getenv("NEAR_RPC_ADDR")
+	nearAccountsFile = os.Getenv("NEAR_ACCOUNTS_FILE")
+	accounts         []string
 )
 
 func init() {
@@ -83,9 +84,20 @@ func init() {
 		listenAddr = ":8080"
 	}
 
-	for _, account := range strings.Split(nearAccounts, ",") {
-		if account = strings.TrimSpace(account); account != "" {
-			accounts = append(accounts, account)
+	if nearAccountsFile != "" {
+		file, err := os.Open(nearAccountsFile)
+		if err != nil {
+			log.Fatalf("open accounts file: %s", err)
+		}
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			if account := strings.TrimSpace(scanner.Text()); account != "" {
+				accounts = append(accounts, account)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Fatalf("read accounts file: %s", err)
 		}
 	}
 }
