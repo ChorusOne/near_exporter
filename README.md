@@ -39,3 +39,22 @@ systemctl enable --now near-exporter.service
 ```
 
 Exporter will be available at http://localhost:8080/metrics
+
+### Account balances
+
+Optionally set `NEAR_ACCOUNTS_FILE` to a text file containing one account ID per line:
+
+```sh
+export NEAR_ACCOUNTS_FILE="/etc/near-exporter/accounts.txt"
+```
+
+Example file:
+
+```text
+chorusone.near
+treasury.near
+```
+The file is read at startup; restart the exporter after changing it.
+
+Each query exports `near_exporter_account_balance_near{account_id="treasury.near"}` in NEAR.
+This is the RPC `amount` field: it excludes locked balance and is not adjusted for storage reserves.

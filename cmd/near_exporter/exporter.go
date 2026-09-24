@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -67,8 +69,10 @@ const (
 )
 
 var (
-	listenAddr  = os.Getenv("LISTEN_ADDR")
-	nearRPCAddr = os.Getenv("NEAR_RPC_ADDR")
+	listenAddr       = os.Getenv("LISTEN_ADDR")
+	nearRPCAddr      = os.Getenv("NEAR_RPC_ADDR")
+	nearAccountsFile = os.Getenv("NEAR_ACCOUNTS_FILE")
+	accounts         []string
 )
 
 func init() {
@@ -79,11 +83,32 @@ func init() {
 	if listenAddr == "" {
 		listenAddr = ":8080"
 	}
+
+	if nearAccountsFile != "" {
+		file, err := os.Open(nearAccountsFile)
+		if err != nil {
+			log.Fatalf("open accounts file: %s", err)
+		}
+		defer file.Close()
+		seen := make(map[string]bool)
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			if account := strings.TrimSpace(scanner.Text()); account != "" && !seen[account] {
+				seen[account] = true
+				accounts = append(accounts, account)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Fatalf("read accounts file: %s", err)
+		}
+	}
 }
 
 type nearExporter struct {
-	client  *http.Client
-	rpcAddr string
+	client         *http.Client
+	rpcAddr        string
+	accounts       []string
+	accountBalance *prometheus.Desc
 
 	totalValidatorsDesc           *prometheus.Desc
 	epochStartHeight              *prometheus.Desc
@@ -97,10 +122,15 @@ type nearExporter struct {
 	validatorIsSlashed            *prometheus.Desc
 }
 
-func NewNearCollector(rpcAddr string) prometheus.Collector {
+func NewNearCollector(rpcAddr string, accounts []string) prometheus.Collector {
 	return &nearExporter{
-		client:  &http.Client{Timeout: httpTimeout},
-		rpcAddr: rpcAddr,
+		client:   &http.Client{Timeout: httpTimeout},
+		rpcAddr:  rpcAddr,
+		accounts: accounts,
+		accountBalance: prometheus.NewDesc(
+			"near_exporter_account_balance_near",
+			"Account balance in NEAR (RPC amount, excluding locked balance)",
+			[]string{"account_id"}, nil),
 		totalValidatorsDesc: prometheus.NewDesc(
 			"near_exporter_active_validators",
 			"Total number of active validators",
@@ -146,6 +176,7 @@ func NewNearCollector(rpcAddr string) prometheus.Collector {
 
 func (c *nearExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.totalValidatorsDesc
+	ch <- c.accountBalance
 }
 
 func (c *nearExporter) mustEmitMetrics(ch chan<- prometheus.Metric, response *ValidatorsResponse) {
@@ -190,18 +221,20 @@ func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
 	err := c.collect(ch)
 
 	if err != nil {
-		ch <- prometheus.NewInvalidMetric(c.totalValidatorsDesc, err)
-		ch <- prometheus.NewInvalidMetric(c.epochStartHeight, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorStake, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedBlocks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedBlocks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedChunks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedChunks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedEndorsements, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedEndorsements, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorIsSlashed, err)
-
 		log.Printf("ERROR: %s", err)
+	}
+
+	c.collectAccountBalances(ch)
+}
+
+func (c *nearExporter) collectAccountBalances(ch chan<- prometheus.Metric) {
+	for _, account := range c.accounts {
+		balance, err := c.getAccountBalance(account)
+		if err != nil {
+			log.Printf("ERROR: account %s: %s", account, err)
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.accountBalance, prometheus.GaugeValue, balance, account)
 	}
 }
 
@@ -224,10 +257,11 @@ func (c *nearExporter) collect(ch chan<- prometheus.Metric) error {
 }
 
 func main() {
-	collector := NewNearCollector(nearRPCAddr)
+	collector := NewNearCollector(nearRPCAddr, accounts)
 	prometheus.MustRegister(collector)
 	http.Handle("/metrics", promhttp.Handler())
 	log.Print("RPC address ", nearRPCAddr)
+	log.Printf("Balance accounts: %v", accounts)
 	log.Print("Listening on ", listenAddr)
 	panic(http.ListenAndServe(listenAddr, nil))
 }
