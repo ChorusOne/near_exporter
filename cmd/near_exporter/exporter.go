@@ -216,6 +216,16 @@ func (c *nearExporter) mustEmitMetrics(ch chan<- prometheus.Metric, response *Va
 }
 
 func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
+	err := c.collect(ch)
+
+	if err != nil {
+		log.Printf("ERROR: %s", err)
+	}
+
+	c.collectAccountBalances(ch)
+}
+
+func (c *nearExporter) collectAccountBalances(ch chan<- prometheus.Metric) {
 	for _, account := range c.accounts {
 		balance, err := c.getAccountBalance(account)
 		if err != nil {
@@ -223,23 +233,6 @@ func (c *nearExporter) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		ch <- prometheus.MustNewConstMetric(c.accountBalance, prometheus.GaugeValue, balance, account)
-	}
-
-	err := c.collect(ch)
-
-	if err != nil {
-		ch <- prometheus.NewInvalidMetric(c.totalValidatorsDesc, err)
-		ch <- prometheus.NewInvalidMetric(c.epochStartHeight, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorStake, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedBlocks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedBlocks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedChunks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedChunks, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorExpectedEndorsements, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorProducedEndorsements, err)
-		ch <- prometheus.NewInvalidMetric(c.validatorIsSlashed, err)
-
-		log.Printf("ERROR: %s", err)
 	}
 }
 
